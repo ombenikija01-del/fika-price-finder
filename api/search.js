@@ -20,18 +20,40 @@ async function getRates() {
   return rateCache.data;
 }
 
-async function shoppingSearch(q, gl, key) {
-  const params = new URLSearchParams({ engine: "google_shopping", q, gl: gl.toLowerCase(), hl: "en", api_key: key });
+// Three ways to ask SerpApi for shopping results. If one comes back empty, try the next.
+const ENGINES = [
+  { name: "google_shopping", extra: {} },
+  { name: "google_shopping_light", extra: {} },
+  { name: "google", extra: { tbm: "shop" } }
+];
+const NO_RESULTS = /hasn't returned any results|no results/i;
+
+async function callSerp(engine, q, gl, key) {
+  const params = new URLSearchParams({ engine: engine.name, q, gl: gl.toLowerCase(), hl: "en", api_key: key, ...engine.extra });
+  if (gl === FALLBACK) params.set("location", "United States");
   const r = await fetch("https://serpapi.com/search.json?" + params.toString());
   const j = await r.json();
   if (!r.ok || j.error) {
     const msg = j && j.error ? j.error : "Search service returned " + r.status;
     const err = new Error(msg);
     err.unsupported = /unsupported/i.test(msg) && /gl|country/i.test(msg);
-    err.quota = /run out|limit|plan/i.test(msg);
+    err.quota = /run out|limit|plan|credits/i.test(msg);
+    err.empty = NO_RESULTS.test(msg);
     throw err;
   }
+  const n = (j.shopping_results || []).length + (j.inline_shopping_results || []).length;
+  if (!n) { const err = new Error("No results"); err.empty = true; throw err; }
+  j._engine = engine.name;
   return j;
+}
+
+async function shoppingSearch(q, gl, key) {
+  let last;
+  for (const engine of ENGINES) {
+    try { return await callSerp(engine, q, gl, key); }
+    catch (e) { last = e; if (!e.empty) throw e; }
+  }
+  return { shopping_results: [], _engine: "none", _empty: true, _msg: last && last.message };
 }
 
 export default async function handler(req, res) {
@@ -63,10 +85,11 @@ export default async function handler(req, res) {
   const rates = await getRates();
   const { currency, results } = normalize(serp, country, rates && rates.rates, source);
 
-  res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+  res.setHeader("Cache-Control", results.length ? "public, s-maxage=3600, stale-while-revalidate=86400" : "no-store");
   return res.status(200).json({
     query: q, country, currency,
     sourceCountry: source,
+    engine: serp._engine || null,
     fallback: source !== country,
     ratesUpdated: rates ? rates.updated : null,
     ratesAvailable: !!rates,
