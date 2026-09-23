@@ -1,8 +1,12 @@
 // GET /api/search?q=headphones&country=TZ
-// Fetches live Google Shopping results for a country via SerpApi,
-// converts prices into that country's currency, and returns a clean list.
+// Fetches live Google Shopping results via SerpApi, converts prices into the
+// buyer's currency, and returns a clean list. If Google Shopping doesn't cover
+// the buyer's country, it falls back to international (US) results and says so.
 import { COUNTRY_CURRENCY, normalize } from "./_lib.js";
 
+const FALLBACK = "US";
+// Countries SerpApi's Google Shopping has rejected. Tanzania is known; others are learned as they fail.
+const UNSUPPORTED = new Set(["TZ"]);
 let rateCache = { at: 0, data: null };
 
 async function getRates() {
@@ -11,11 +15,23 @@ async function getRates() {
   try {
     const r = await fetch("https://open.er-api.com/v6/latest/USD");
     const j = await r.json();
-    if (j && j.rates) {
-      rateCache = { at: Date.now(), data: { rates: j.rates, updated: j.time_last_update_utc || null } };
-    }
+    if (j && j.rates) rateCache = { at: Date.now(), data: { rates: j.rates, updated: j.time_last_update_utc || null } };
   } catch (e) { /* keep the old rates if the refresh fails */ }
   return rateCache.data;
+}
+
+async function shoppingSearch(q, gl, key) {
+  const params = new URLSearchParams({ engine: "google_shopping", q, gl: gl.toLowerCase(), hl: "en", api_key: key });
+  const r = await fetch("https://serpapi.com/search.json?" + params.toString());
+  const j = await r.json();
+  if (!r.ok || j.error) {
+    const msg = j && j.error ? j.error : "Search service returned " + r.status;
+    const err = new Error(msg);
+    err.unsupported = /unsupported/i.test(msg) && /gl|country/i.test(msg);
+    err.quota = /run out|limit|plan/i.test(msg);
+    throw err;
+  }
+  return j;
 }
 
 export default async function handler(req, res) {
@@ -28,32 +44,30 @@ export default async function handler(req, res) {
   const key = process.env.SERPAPI_KEY;
   if (!key) return res.status(500).json({ error: "The search key is missing. Add SERPAPI_KEY in the hosting settings." });
 
-  const params = new URLSearchParams({
-    engine: "google_shopping", q, gl: country.toLowerCase(), hl: "en", api_key: key
-  });
-
+  let source = UNSUPPORTED.has(country) ? FALLBACK : country;
   let serp;
   try {
-    const r = await fetch("https://serpapi.com/search.json?" + params.toString());
-    serp = await r.json();
-    if (!r.ok || serp.error) {
-      const msg = serp && serp.error ? serp.error : "Search service returned " + r.status;
-      const quota = /run out|limit|plan/i.test(msg);
-      return res.status(quota ? 429 : 502).json({
-        error: quota ? "This month's free searches are used up." : "The search service had a problem: " + msg
-      });
+    try {
+      serp = await shoppingSearch(q, source, key);
+    } catch (e) {
+      if (!e.unsupported || source === FALLBACK) throw e;
+      UNSUPPORTED.add(country);
+      source = FALLBACK;
+      serp = await shoppingSearch(q, source, key);
     }
   } catch (e) {
-    return res.status(502).json({ error: "Couldn't reach the search service. Try again in a minute." });
+    if (e.quota) return res.status(429).json({ error: "This month's free searches are used up." });
+    return res.status(502).json({ error: e.message ? "The search service had a problem: " + e.message : "Couldn't reach the search service. Try again in a minute." });
   }
 
   const rates = await getRates();
-  const { currency, results } = normalize(serp, country, rates && rates.rates);
+  const { currency, results } = normalize(serp, country, rates && rates.rates, source);
 
-  // Let Vercel's CDN reuse the same search for an hour, saving monthly quota.
   res.setHeader("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
   return res.status(200).json({
     query: q, country, currency,
+    sourceCountry: source,
+    fallback: source !== country,
     ratesUpdated: rates ? rates.updated : null,
     ratesAvailable: !!rates,
     count: results.length,

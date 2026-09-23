@@ -49,7 +49,9 @@ export function convert(amount, from, to, rates) {
 }
 
 // Turn a SerpApi Google Shopping response into the app's result list.
-export function normalize(serp, country, rates) {
+// `country` = where the buyer is (prices convert to its currency).
+// `source` = the country whose Google Shopping results these are (used to read "$" etc.).
+export function normalize(serp, country, rates, source = country) {
   const local = COUNTRY_CURRENCY[country] || "USD";
   const items = [...(serp.shopping_results || []), ...(serp.inline_shopping_results || [])];
   const seen = new Set();
@@ -60,7 +62,7 @@ export function normalize(serp, country, rates) {
     const key = (r.source || "") + "|" + (r.title || "") + "|" + price;
     if (seen.has(key)) continue;
     seen.add(key);
-    const cur = detectCurrency(r.price, country);
+    const cur = detectCurrency(r.price, source);
     const del = parseDelivery(r.delivery);
     const deliveryLocal = del.cost == null ? null : convert(del.cost, cur, local, rates);
     out.push({

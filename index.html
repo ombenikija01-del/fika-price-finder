@@ -187,7 +187,8 @@ function renderResults(){
   const priced=rows.filter(x=>x.t.total!=null).sort((a,b)=>a.t.total-b.t.total);
   const unpriced=rows.filter(x=>x.t.total==null);
   let html="";
-  if(!rows.length){box.innerHTML=`<div class="empty">No results for "${esc(d.query)}" in ${esc(cname(c))}. Google Shopping has limited coverage in some countries. Try a more common product name, or a nearby country.</div>`;return;}
+  if(d.fallback) html+=`<div class="proto">Google Shopping doesn't list stores for ${esc(cname(c))} yet, so these are international stores (${esc(cname(d.sourceCountry))} results) with prices converted to ${esc(cur)}. Not all of them ship to ${esc(cname(c))}: check on the store before buying.</div>`;
+  if(!rows.length){box.innerHTML=html+`<div class="empty">No results for "${esc(d.query)}" in ${esc(cname(c))}. Google Shopping has limited coverage in some countries. Try a more common product name, or a nearby country.</div>`;return;}
   if(priced.length>1){
     const lo=priced[0],hi=priced[priced.length-1],pct=Math.round((hi.t.total/lo.t.total-1)*100);
     html+=`<div class="summary"><div><div class="k">Lowest estimated total</div><div class="big">${money(lo.t.total,cur)}</div><div class="who">${esc(lo.r.store)}</div></div>
