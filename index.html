@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fika Price Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#F3F6F7; --surface:#FFFFFF; --ink:#13212B; --muted:#5B6B76; --line:#DCE3E7;
+  --accent:#0A6C86; --accent-soft:#E1F0F4; --good:#1E7A4C; --good-soft:#E3F3EA;
+  --stop:#B23A2E; --stop-soft:#F8E6E3; --warn:#8A5A00; --warn-soft:#FBF0D9;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0E1519; --surface:#152028; --ink:#E4ECF0; --muted:#93A4AE; --line:#253440;
+    --accent:#4FB6D3; --accent-soft:#16323C; --good:#5CC98F; --good-soft:#15302A;
+    --stop:#EE7F72; --stop-soft:#3A1F1C; --warn:#E3B45C; --warn-soft:#352A14;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1519; --surface:#152028; --ink:#E4ECF0; --muted:#93A4AE; --line:#253440;
+  --accent:#4FB6D3; --accent-soft:#16323C; --good:#5CC98F; --good-soft:#15302A;
+  --stop:#EE7F72; --stop-soft:#3A1F1C; --warn:#E3B45C; --warn-soft:#352A14;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding:0 16px}
+.wrap{max-width:720px;margin:0 auto;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+.proto{font-size:12.5px;color:var(--warn);background:var(--warn-soft);border-radius:8px;padding:8px 12px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--accent)}
+.tag{margin:4px 0 0;color:var(--muted);font-size:14px;text-wrap:balance}
+label.lbl{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:600}
+select,input{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+select:focus-visible,input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.search{display:flex;gap:8px}
+.search input{flex:1;min-width:0;font-size:16px}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--accent);color:var(--surface);border:0;border-radius:10px;padding:10px 16px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.summary{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:end}
+.summary .k{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.summary .big{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums;line-height:1.1}
+.summary .who{font-size:14px;color:var(--muted)}
+.summary .spread{text-align:right}
+.summary .spread .big{color:var(--stop);font-size:22px}
+.list{display:flex;flex-direction:column;gap:10px}
+.offer{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.offer.best{border-color:var(--good);box-shadow:0 0 0 1px var(--good) inset}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.store{font-weight:600;font-size:16px}
+.from{font-size:12.5px;color:var(--muted)}
+.total{font-family:var(--mono);font-size:19px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.total small{display:block;font-family:var(--body);font-size:12px;color:var(--muted)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font-size:12px;border-radius:6px;padding:2px 8px;font-weight:600}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.info{background:var(--accent-soft);color:var(--accent)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.stop{background:var(--stop-soft);color:var(--stop)}
+.line{font-size:13px;color:var(--muted)}
+.actions{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px}
+.link{background:none;border:0;padding:0;color:var(--accent);font-weight:600;text-decoration:none}
+table.bd{width:100%;border-collapse:collapse;font-size:13.5px}
+table.bd td{padding:5px 0;border-top:1px solid var(--line)}
+table.bd td.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.bd tr.t td{font-weight:600;color:var(--ink)}
+h2{font-family:var(--display);font-weight:600;font-size:18px;margin:6px 0 0}
+.excluded .offer{opacity:.85}
+details.assump{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+details.assump summary{cursor:pointer;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.grid input{width:100%}
+.note{font-size:12.5px;color:var(--muted);margin:10px 0 0}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--muted)}
+@media (max-width:480px){h1{font-size:26px}.summary{grid-template-columns:1fr}.summary .spread{text-align:left}}
+@media (prefers-reduced-motion:no-preference){.offer{transition:border-color .2s}}
+</style>
+
+</head>
+<body>
+<style>
+.thumb{width:64px;height:64px;border-radius:8px;object-fit:contain;background:var(--bg);flex:none}
+.head{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.head .txt{min-width:0}
+.title{font-size:13.5px;color:var(--muted);overflow-wrap:anywhere}
+.settings{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.settings input[type=number]{width:110px}
+.toggle{display:flex;gap:8px;align-items:center;font-size:14px}
+.status{color:var(--muted);font-size:14px}
+.err{background:var(--stop-soft);color:var(--stop);border-radius:10px;padding:12px 14px}
+</style>
+
+<div class="wrap">
+  <div class="proto">Live test version. Prices come from Google Shopping for your country. Import taxes are estimates. Always confirm the final price on the store.</div>
+
+  <header>
+    <div>
+      <h1>Fika <span>Price Finder</span></h1>
+      <p class="tag">Compare what a product costs across online stores that sell to your country.</p>
+    </div>
+    <div>
+      <label class="lbl" for="country">Deliver to</label>
+      <select id="country"></select>
+    </div>
+  </header>
+
+  <form class="search" id="searchForm" autocomplete="off">
+    <input id="q" type="search" placeholder="Search a product, e.g. Sony WH-1000XM5" aria-label="Search a product">
+    <button class="btn" type="submit" id="go">Compare</button>
+  </form>
+  <div class="chips" id="chips" aria-label="Example searches"></div>
+
+  <details class="assump">
+    <summary>Import tax estimate for items priced in a foreign currency</summary>
+    <div class="settings" style="margin-top:12px">
+      <label class="toggle"><input type="checkbox" id="useTax" checked> Add estimated duty and VAT</label>
+      <div><label class="lbl" for="duty">Duty, %</label><input id="duty" type="number" min="0" max="100" step="any"></div>
+      <div><label class="lbl" for="vat">VAT / GST, %</label><input id="vat" type="number" min="0" max="100" step="any"></div>
+    </div>
+    <p class="note" id="taxNote"></p>
+  </details>
+
+  <div id="results"></div>
+  <p class="note" id="foot"></p>
+</div>
+
+<script>
+const CODES="AD AE AF AG AL AM AO AR AT AU AZ BA BB BD BE BF BG BH BI BJ BN BO BR BS BT BW BY BZ CA CD CF CG CH CI CL CM CN CO CR CV CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FR GA GB GD GE GH GM GN GQ GR GT GW GY HK HN HR HT HU ID IE IL IN IQ IS IT JM JO JP KE KG KH KM KN KR KW KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MG MK ML MM MN MO MR MT MU MV MW MX MY MZ NA NE NG NI NL NO NP NZ OM PA PE PG PH PK PL PT PY QA RO RS RW SA SB SC SD SE SG SI SK SL SM SN SO SR SS ST SV SZ TD TG TH TJ TL TM TN TO TR TT TW TZ UA UG US UY UZ VA VN VU WS YE ZA ZM ZW".split(" ");
+const EAC=["TZ","KE","UG","RW","BI","SS","CD","SO"];
+const VAT={TZ:18,KE:16,UG:18,RW:18,BI:18,CD:16,GB:20,IE:23,DE:19,FR:20,IT:22,ES:21,NL:21,BE:21,SE:25,PL:23,PT:23,AT:20,DK:25,FI:25.5,NO:25,CH:8.1,
+  ZA:15,NG:7.5,ET:15,EG:14,MA:20,GH:15,ZM:16,MW:16.5,MZ:16,IN:18,AE:5,SA:15,AU:10,NZ:15,CA:5,JP:10,CN:13,SG:9,MY:10,US:0};
+const EXAMPLES=["Sony WH-1000XM5","Samsung Galaxy A55","HP laptop 16GB","Nike Pegasus 41","Anker power bank 20000mAh"];
+const $=id=>document.getElementById(id);
+let dn=null; try{dn=new Intl.DisplayNames(["en"],{type:"region"})}catch(e){}
+const state={country:"TZ",data:null,loading:false,error:null,tax:{}};
+try{const c=localStorage.getItem("fika-country"); if(c&&CODES.includes(c)) state.country=c;}catch(e){}
+
+function cname(c){return (dn&&dn.of(c))||c}
+function taxFor(c){ if(!state.tax[c]) state.tax[c]={on:true,duty:EAC.includes(c)?25:10,vat:(c in VAT)?VAT[c]:15}; return state.tax[c]; }
+function money(n,cur){
+  if(n==null||isNaN(n)) return "—";
+  try{return new Intl.NumberFormat("en-US",{style:"currency",currency:cur,maximumFractionDigits:n>=1000?0:2}).format(n)}
+  catch(e){return cur+" "+Math.round(n).toLocaleString("en-US")}
+}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]))}
+
+function renderCountry(){
+  const sorted=CODES.slice().sort((a,b)=>cname(a).localeCompare(cname(b)));
+  $("country").innerHTML=sorted.map(c=>`<option value="${c}">${esc(cname(c))}</option>`).join("");
+  $("country").value=state.country;
+}
+function renderChips(){ $("chips").innerHTML=EXAMPLES.map(x=>`<button type="button" class="chip" data-q="${esc(x)}">${esc(x)}</button>`).join(""); }
+function renderTax(){
+  const t=taxFor(state.country);
+  $("useTax").checked=t.on; $("duty").value=t.duty; $("vat").value=t.vat;
+  $("taxNote").textContent=(EAC.includes(state.country)?"Duty default uses the East African Community tariff for finished goods (25%). ":"Duty default is a general placeholder (10%), not this country's tariff. ")+
+    "The estimate is applied only to items priced in a foreign currency, since those are likely shipped from abroad. Real rates depend on the product and your customs authority.";
+}
+
+function totals(r){
+  const t=taxFor(state.country);
+  const base=r.priceLocal==null?null:r.priceLocal+(r.deliveryLocal||0);
+  let taxes=0;
+  if(base!=null&&r.international&&t.on){const duty=base*t.duty/100; taxes=duty+(base+duty)*t.vat/100;}
+  return {base,taxes,total:base==null?null:base+taxes};
+}
+
+function renderResults(){
+  const box=$("results"), c=state.country;
+  if(state.loading){box.innerHTML=`<p class="status">Searching stores that sell to ${esc(cname(c))}…</p>`;return;}
+  if(state.error){box.innerHTML=`<div class="err">${esc(state.error)}</div>`;return;}
+  const d=state.data;
+  if(!d){box.innerHTML=`<div class="empty">Choose your country, then search a product or tap an example above.</div>`;$("foot").textContent="";return;}
+  const cur=d.currency;
+  const rows=d.results.map(r=>({r,t:totals(r)}));
+  const priced=rows.filter(x=>x.t.total!=null).sort((a,b)=>a.t.total-b.t.total);
+  const unpriced=rows.filter(x=>x.t.total==null);
+  let html="";
+  if(!rows.length){box.innerHTML=`<div class="empty">No results for "${esc(d.query)}" in ${esc(cname(c))}. Google Shopping has limited coverage in some countries. Try a more common product name, or a nearby country.</div>`;return;}
+  if(priced.length>1){
+    const lo=priced[0],hi=priced[priced.length-1],pct=Math.round((hi.t.total/lo.t.total-1)*100);
+    html+=`<div class="summary"><div><div class="k">Lowest estimated total</div><div class="big">${money(lo.t.total,cur)}</div><div class="who">${esc(lo.r.store)}</div></div>
+      <div class="spread"><div class="k">Highest</div><div class="big">+${pct}%</div><div class="who">${esc(hi.r.store)}</div></div></div>`;
+  }
+  html+=`<h2>${d.count} ${d.count===1?"offer":"offers"} for "${esc(d.query)}" in ${esc(cname(c))}</h2><div class="list">`;
+  [...priced,...unpriced].forEach((x,i)=>{
+    const r=x.r,t=x.t,pills=[];
+    if(i===0&&priced.length>1) pills.push(`<span class="pill good">Lowest total</span>`);
+    pills.push(r.international?`<span class="pill warn">Priced in ${esc(r.currency)}: likely ships from abroad</span>`:`<span class="pill info">Priced in local currency</span>`);
+    if(r.delivery) pills.push(`<span class="pill info">${esc(r.delivery)}</span>`);
+    if(r.international&&t.taxes>0) pills.push(`<span class="pill warn">Est. taxes ${money(t.taxes,cur)}</span>`);
+    html+=`<article class="offer${i===0&&priced.length>1?" best":""}">
+      <div class="row"><div class="head">${r.thumbnail?`<img class="thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy">`:""}
+        <div class="txt"><div class="store">${esc(r.store)}</div><div class="title">${esc(r.title)}</div></div></div>
+        <div class="total">${t.total==null?esc(r.priceText):money(t.total,cur)}<small>${t.total==null?"can't convert":(r.international&&t.taxes>0?"est. delivered":"listed + delivery")}</small></div></div>
+      <div class="line">Listed at ${esc(r.priceText||money(r.price,r.currency))}${r.rating?` · ${esc(r.rating)}★${r.reviews?" ("+esc(r.reviews)+")":""}`:""}</div>
+      <div class="pills">${pills.join("")}</div>
+      ${r.link?`<div class="actions"><a class="link" href="${esc(r.link)}" target="_blank" rel="noopener">View offer</a></div>`:""}
+    </article>`;
+  });
+  html+=`</div>`;
+  box.innerHTML=html;
+  $("foot").textContent=d.ratesAvailable?`Exchange rates updated ${d.ratesUpdated||"recently"}.`:"Exchange rates unavailable right now; some prices can't be converted.";
+}
+
+async function run(q){
+  q=(q||"").trim(); if(!q) return;
+  state.loading=true; state.error=null; renderResults(); $("go").disabled=true;
+  try{
+    const res=await fetch(`/api/search?q=${encodeURIComponent(q)}&country=${state.country}`);
+    const j=await res.json();
+    if(!res.ok) throw new Error(j.error||"Search failed.");
+    state.data=j;
+  }catch(e){state.error=e.message||"Search failed. Check your connection and try again."; state.data=null;}
+  state.loading=false; $("go").disabled=false; renderResults();
+}
+
+$("searchForm").addEventListener("submit",e=>{e.preventDefault();run($("q").value)});
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;$("q").value=b.dataset.q;run(b.dataset.q)});
+$("country").addEventListener("change",e=>{state.country=e.target.value;try{localStorage.setItem("fika-country",state.country)}catch(err){}renderTax();state.data=null;renderResults();if($("q").value.trim())run($("q").value)});
+["useTax","duty","vat"].forEach(id=>$(id).addEventListener("input",()=>{const t=taxFor(state.country);t.on=$("useTax").checked;const d=parseFloat($("duty").value),v=parseFloat($("vat").value);if(!isNaN(d)&&d>=0)t.duty=d;if(!isNaN(v)&&v>=0)t.vat=v;renderResults()}));
+
+renderCountry(); renderChips(); renderTax(); renderResults();
+</script>
+
+</body>
+</html>
